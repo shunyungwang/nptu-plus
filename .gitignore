@@ -1,0 +1,26 @@
+# Local analysis captures may contain student records or session data.
+/analysis/
+
+# Local IDE, Flutter, and Android build state.
+.idea/
+.dart_tool/
+build/
+android/.gradle/
+android/local.properties
+.flutter-plugins-dependencies
+*.iml
+
+# Local packages and signing material.
+*.apk
+*.aab
+android/key.properties
+android/*.jks
+android/*.keystore
+*.jks
+*.keystore
+*.pem
+*.p12
+.env
+.env.*
+!.env.example
+*.log
