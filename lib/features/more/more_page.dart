@@ -1,11 +1,13 @@
-/// 「更多」分頁 — 次要功能入口。
+/// 「更多」：分組的功能入口。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
+import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_surfaces.dart';
 
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
@@ -15,45 +17,93 @@ class MorePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('更多')),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.l),
+        padding: AppDimensions.pageInsets,
         children: [
-          ListTile(
-            leading: const Icon(Icons.class_outlined),
-            title: const Text('選課查詢'),
-            subtitle: const Text('已選課程清單 / 選課結果'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(kRouteCourseSelection),
+          const AppSectionHeader(title: '課務'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              children: [
+                _Entry(
+                  icon: Icons.class_outlined,
+                  title: '選課查詢',
+                  subtitle: '本學期已選課程',
+                  route: kRouteCourseSelection,
+                ),
+                const Divider(height: 1),
+                _Entry(
+                  icon: Icons.event_available_outlined,
+                  title: '出缺勤',
+                  subtitle: '曠課與請假紀錄',
+                  route: kRouteAttendance,
+                ),
+                const Divider(height: 1),
+                _Entry(
+                  icon: Icons.event_busy_outlined,
+                  title: '請假申請',
+                  subtitle: '新增與取消請假',
+                  route: kRouteLeaveApplication,
+                ),
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.history_edu_outlined),
-            title: const Text('出缺勤'),
-            subtitle: const Text('曠課、請假紀錄查詢'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(kRouteAttendance),
-          ),
-          ListTile(
-            leading: const Icon(Icons.event_busy_outlined),
-            title: const Text('請假申請'),
-            subtitle: const Text('新增與取消請假'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(kRouteLeaveApplication),
-          ),
-          ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: const Text('個人資料'),
-            subtitle: const Text('學籍 / 系所 / 班級'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(kRouteProfile),
-          ),
-          ListTile(
-            leading: const Icon(Icons.tune),
-            title: const Text('設定'),
-            subtitle: const Text('主題 / 登出'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(kRouteSettings),
+          const SizedBox(height: AppDimensions.sectionGap),
+          const AppSectionHeader(title: '個人'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              children: [
+                _Entry(
+                  icon: Icons.badge_outlined,
+                  title: '個人資料',
+                  subtitle: '學籍與聯絡資訊',
+                  route: kRouteProfile,
+                ),
+                const Divider(height: 1),
+                _Entry(
+                  icon: Icons.tune,
+                  title: '設定',
+                  subtitle: '外觀、帳號與版本',
+                  route: kRouteSettings,
+                ),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Entry extends StatelessWidget {
+  const _Entry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.cardPadding,
+      ),
+      leading: Icon(icon, size: AppDimensions.iconMedium),
+      title: Text(title, style: theme.textTheme.bodyMedium),
+      subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+      trailing: Icon(
+        Icons.chevron_right,
+        size: AppDimensions.iconSmall,
+        color: theme.colorScheme.outline,
+      ),
+      onTap: () => context.push(route),
     );
   }
 }

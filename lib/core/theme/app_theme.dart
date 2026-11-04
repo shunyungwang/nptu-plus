@@ -1,77 +1,81 @@
-/// Theme 總裝：亮色與深色的 ThemeData 單一組裝點。
-///
-/// Material 3 + 統一色彩/字體/圓角/元件 Token，兩種模式完全對應。
+/// Theme 總裝：Pure White / OLED Black 兩個 ThemeData 的唯一組裝點。
 library;
 
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_components.dart';
+import 'app_dimensions.dart';
 import 'app_radius.dart';
-import 'app_spacing.dart';
 import 'app_typography.dart';
 
-/// 亮色主題。
 ThemeData buildLightTheme() {
   final scheme = buildLightScheme();
-  final text = buildAppTextTheme(Brightness.light, scheme);
-  return _assemble(scheme, text);
+  return _assemble(scheme, buildAppTextTheme(Brightness.light, scheme));
 }
 
-/// 深色主題。
 ThemeData buildDarkTheme() {
   final scheme = buildDarkScheme();
-  final text = buildAppTextTheme(Brightness.dark, scheme);
-  return _assemble(scheme, text);
+  return _assemble(scheme, buildAppTextTheme(Brightness.dark, scheme));
 }
 
 ThemeData _assemble(ColorScheme scheme, TextTheme text) {
-  final scaffoldBg = scheme.surface;
   return ThemeData(
     useMaterial3: true,
     brightness: scheme.brightness,
     colorScheme: scheme,
     textTheme: text,
-    scaffoldBackgroundColor: scaffoldBg,
+    scaffoldBackgroundColor: scheme.surface,
     splashFactory: InkSparkle.splashFactory,
-    // ----元件 ----
     inputDecorationTheme: buildInputDecorationTheme(text),
     filledButtonTheme: FilledButtonThemeData(style: buildFilledButton(text)),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: buildOutlinedButton(text),
     ),
+    textButtonTheme: TextButtonThemeData(style: buildTextButton(text)),
     cardTheme: buildCardTheme(scheme),
+    chipTheme: buildChipTheme(scheme, text),
     dialogTheme: buildDialogTheme(scheme),
-    navigationBarTheme: buildNavigationBarTheme(scheme),
     bottomSheetTheme: buildBottomSheetTheme(scheme),
+    navigationBarTheme: buildNavigationBarTheme(scheme, text),
+    snackBarTheme: buildSnackBarTheme(scheme, text),
     appBarTheme: AppBarTheme(
-      backgroundColor: scaffoldBg,
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
       foregroundColor: scheme.onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      titleSpacing: AppDimensions.pagePadding,
+      toolbarHeight: 60,
       titleTextStyle: text.titleLarge,
+      iconTheme: IconThemeData(color: scheme.onSurface, size: 22),
     ),
     dividerTheme: DividerThemeData(
-      color: scheme.outlineVariant.withValues(alpha: 0.6),
+      color: scheme.outlineVariant,
       thickness: 1,
       space: 1,
     ),
     listTileTheme: ListTileThemeData(
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.pagePadding,
+        vertical: 2,
+      ),
+      iconColor: scheme.onSurfaceVariant,
+      textColor: scheme.onSurface,
+      minVerticalPadding: 10,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
       ),
     ),
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: scheme.primary,
+      linearTrackColor: scheme.surfaceContainerHighest,
+      circularTrackColor: Colors.transparent,
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        // 流暢且輕量的轉場（保持 120fps 友善：避免模糊/陰影重效果）。
+        // 淡入位移：輕量、無模糊，適合高刷新率裝置。
         TargetPlatform.android: ZoomPageTransitionsBuilder(),
       },
     ),

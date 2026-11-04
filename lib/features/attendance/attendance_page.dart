@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_surfaces.dart';
 import '../student_data_providers.dart';
 
 class AttendancePage extends ConsumerStatefulWidget {
@@ -34,33 +35,10 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
         ],
       ),
       body: data.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => Center(
-          child: Card(
-            margin: const EdgeInsets.all(AppSpacing.l),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.cloud_off_outlined,
-                    size: 36,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: AppSpacing.m),
-                  const Text('出缺勤資料載入失敗'),
-                  const SizedBox(height: AppSpacing.s),
-                  FilledButton.icon(
-                    onPressed: () =>
-                        ref.invalidate(attendanceProvider(_semester)),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('重新載入'),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        loading: () => const AppLoadingView(message: '正在載入出缺勤'),
+        error: (_, _) => AppErrorView(
+          message: '出缺勤資料載入失敗',
+          onRetry: () => ref.invalidate(attendanceProvider(_semester)),
         ),
         data: (result) {
           final selectedSemester = _semester ?? result.selected;

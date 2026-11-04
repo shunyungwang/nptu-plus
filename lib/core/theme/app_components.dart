@@ -1,94 +1,147 @@
 /// Common Component Token：按鈕、輸入框、卡片、導航的統一樣式。
 ///
-/// 這裡只定義「可重複使用的元件主題」，頁面不得自寫樣式難以維護的內聯值。
+/// 頁面只能透過這些主題與 [AppCard] 取得樣式，不得自行寫死顏色或高度。
 library;
 
 import 'package:flutter/material.dart';
 
+import 'app_colors.dart';
+import 'app_dimensions.dart';
 import 'app_radius.dart';
 import 'app_spacing.dart';
 
-/// 輸入框統一樣式（登入、查詢表單共用）。
+const OutlineInputBorder _inputBorder = OutlineInputBorder(
+  borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+  borderSide: BorderSide.none,
+);
+
 InputDecorationTheme buildInputDecorationTheme(TextTheme textTheme) =>
     InputDecorationTheme(
       filled: true,
       isDense: true,
+      constraints: const BoxConstraints(minHeight: AppDimensions.inputHeight),
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.m,
-        vertical: 14,
+        horizontal: AppSpacing.l,
+        vertical: AppSpacing.m,
       ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+      border: _inputBorder,
+      enabledBorder: _inputBorder,
+      focusedBorder: _inputBorder.copyWith(
+        borderSide: const BorderSide(width: 1.6),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+      errorBorder: _inputBorder.copyWith(
+        borderSide: BorderSide(color: AppSemanticColors.required(Brightness.light)),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: const BorderSide(width: 2),
-      ),
+      hintStyle: textTheme.bodyMedium,
       helperStyle: textTheme.bodySmall,
       errorStyle: textTheme.bodySmall,
     );
 
-/// 主按鈕樣式。
 ButtonStyle buildFilledButton(TextTheme textTheme) => FilledButton.styleFrom(
-  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 14),
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(AppRadius.sm),
+  minimumSize: const Size(0, AppDimensions.buttonHeight),
+  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
   ),
   textStyle: textTheme.labelLarge,
 );
 
-/// 次按鈕樣式。
 ButtonStyle buildOutlinedButton(TextTheme textTheme) =>
     OutlinedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.l,
-        vertical: 12,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+      minimumSize: const Size(0, AppDimensions.buttonHeight),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
       ),
       textStyle: textTheme.labelLarge,
+      side: const BorderSide(width: 1),
     );
 
-/// 卡片樣式 — 低 elevation、細邊框、統一圓角。
+/// 文字按鈕（次要操作）：統一高度與內距，避免各頁大小不一。
+ButtonStyle buildTextButton(TextTheme textTheme) => TextButton.styleFrom(
+  minimumSize: const Size(0, AppDimensions.minTouchTarget),
+  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+  textStyle: textTheme.labelLarge,
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
+  ),
+);
+
+/// 卡片樣式：細邊框、無陰影、統一圓角，兩種主題共用。
 CardThemeData buildCardTheme(ColorScheme scheme) => CardThemeData(
   elevation: 0,
   color: scheme.surfaceContainerLow,
   shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(AppRadius.md),
-    side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+    borderRadius: BorderRadius.circular(AppDimensions.cardRadius),
+    side: BorderSide(
+      color: scheme.outlineVariant,
+      width: AppDimensions.cardBorderWidth,
+    ),
   ),
   margin: EdgeInsets.zero,
   clipBehavior: Clip.antiAlias,
 );
 
-/// Dialog 樣式。
 DialogThemeData buildDialogTheme(ColorScheme scheme) => DialogThemeData(
   backgroundColor: scheme.surfaceContainerHigh,
   shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(AppRadius.dialog),
+    borderRadius: BorderRadius.circular(AppRadius.lg),
   ),
 );
 
-/// NavigationBar 樣式（底部導航）。
-NavigationBarThemeData buildNavigationBarTheme(ColorScheme scheme) =>
-    NavigationBarThemeData(
-      height: 72,
-      backgroundColor: scheme.surfaceContainer,
-      indicatorColor: scheme.secondaryContainer,
-      elevation: 0,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-    );
+NavigationBarThemeData buildNavigationBarTheme(
+  ColorScheme scheme,
+  TextTheme textTheme,
+) => NavigationBarThemeData(
+  height: AppDimensions.navBarHeight,
+  backgroundColor: scheme.surface,
+  indicatorColor: scheme.secondaryContainer,
+  elevation: 0,
+  surfaceTintColor: Colors.transparent,
+  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+  labelTextStyle: WidgetStateProperty.resolveWith(
+    (states) => textTheme.labelMedium?.copyWith(
+      color: states.contains(WidgetState.selected)
+          ? scheme.onSurface
+          : scheme.onSurfaceVariant,
+    ),
+  ),
+);
 
-/// BottomSheet 樣式。
 BottomSheetThemeData buildBottomSheetTheme(ColorScheme scheme) =>
     BottomSheetThemeData(
       backgroundColor: scheme.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       showDragHandle: true,
+    );
+
+ChipThemeData buildChipTheme(ColorScheme scheme, TextTheme textTheme) =>
+    ChipThemeData(
+      backgroundColor: scheme.surfaceContainerHighest,
+      side: BorderSide.none,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s,
+        vertical: 2,
+      ),
+      labelStyle: textTheme.labelMedium,
+      labelPadding: EdgeInsets.zero,
+    );
+
+SnackBarThemeData buildSnackBarTheme(ColorScheme scheme, TextTheme textTheme) =>
+    SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: scheme.inverseSurface,
+      contentTextStyle: textTheme.bodyMedium?.copyWith(
+        color: scheme.onInverseSurface,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+      ),
+      insetPadding: const EdgeInsets.all(AppSpacing.l),
     );

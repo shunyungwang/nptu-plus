@@ -1,29 +1,32 @@
-/// Today's timetable rendered as a period-by-period list.
+/// 課表：以「時間軸」為主體的易讀版面。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/app_surfaces.dart';
 import '../student_data_providers.dart';
 
 const _days = <String>['一', '二', '三', '四', '五', '六', '日'];
-const _slots = <({String code, String time})>[
-  (code: 'M', time: '07:00\n07:50'),
-  (code: '01', time: '08:00\n08:50'),
-  (code: '02', time: '09:00\n09:50'),
-  (code: '03', time: '10:10\n11:00'),
-  (code: '04', time: '11:10\n12:00'),
-  (code: 'N', time: '12:10\n13:00'),
-  (code: '05', time: '13:30\n14:20'),
-  (code: '06', time: '14:30\n15:20'),
-  (code: '07', time: '15:40\n16:30'),
-  (code: '08', time: '16:40\n17:30'),
-  (code: '09', time: '17:35\n18:25'),
-  (code: 'A', time: '18:30\n19:15'),
-  (code: 'B', time: '19:20\n20:05'),
-  (code: 'C', time: '20:10\n20:55'),
-  (code: 'D', time: '21:00\n21:45'),
+
+const _slots = <({String code, String start, String end})>[
+  (code: 'M', start: '07:00', end: '07:50'),
+  (code: '01', start: '08:00', end: '08:50'),
+  (code: '02', start: '09:00', end: '09:50'),
+  (code: '03', start: '10:10', end: '11:00'),
+  (code: '04', start: '11:10', end: '12:00'),
+  (code: 'N', start: '12:10', end: '13:00'),
+  (code: '05', start: '13:30', end: '14:20'),
+  (code: '06', start: '14:30', end: '15:20'),
+  (code: '07', start: '15:40', end: '16:30'),
+  (code: '08', start: '16:40', end: '17:30'),
+  (code: '09', start: '17:35', end: '18:25'),
+  (code: 'A', start: '18:30', end: '19:15'),
+  (code: 'B', start: '19:20', end: '20:05'),
+  (code: 'C', start: '20:10', end: '20:55'),
+  (code: 'D', start: '21:00', end: '21:45'),
 ];
 
 class TimetablePage extends ConsumerStatefulWidget {
@@ -44,9 +47,8 @@ class _TimetablePageState extends ConsumerState<TimetablePage> {
 
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
-    final data = ref.watch(coursesProvider);
     final theme = Theme.of(context);
+    final data = ref.watch(coursesProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('課表'),
@@ -54,250 +56,230 @@ class _TimetablePageState extends ConsumerState<TimetablePage> {
           IconButton(
             onPressed: () => ref.invalidate(coursesProvider),
             icon: const Icon(Icons.refresh),
-            tooltip: '重新載入課表',
+            tooltip: '重新載入',
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: data.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: TextButton.icon(
-            onPressed: () => ref.invalidate(coursesProvider),
-            icon: const Icon(Icons.refresh),
-            label: Text('課表載入失敗，點擊重試：$error'),
-          ),
+        loading: () => const AppLoadingView(message: '正在載入課表'),
+        error: (error, _) => AppErrorView(
+          message: '$error',
+          onRetry: () => ref.invalidate(coursesProvider),
         ),
         data: (courses) {
-          final today = DateTime.now().weekday;
-          final coursesBySlot = <String, List<Map<String, String>>>{};
-          var selectedCourses = 0;
+          final bySlot = <String, List<Map<String, String>>>{};
+          var count = 0;
           for (final course in courses) {
             final weekdays = _parseWeekdays(course['weekday'] ?? '');
-            final periods = _parsePeriods(course['period'] ?? '');
-            for (final day in weekdays) {
-              if (day == _selectedDay) {
-                selectedCourses++;
-                for (final slot in periods) {
-                  (coursesBySlot[slot] ??= []).add(course);
-                }
-                break;
-              }
+            if (!weekdays.contains(_selectedDay)) continue;
+            count++;
+            for (final slot in _parsePeriods(course['period'] ?? '')) {
+              (bySlot[slot] ??= []).add(course);
             }
           }
-          final dayName = _days[_selectedDay - 1];
-          final occupiedSlots = _slots
-              .where((slot) => coursesBySlot.containsKey(slot.code))
+          final occupied = _slots
+              .where((slot) => bySlot.containsKey(slot.code))
               .toList();
+          final today = DateTime.now().weekday;
 
           return ListView(
-            padding: const EdgeInsets.all(AppSpacing.m),
+            padding: AppDimensions.pageInsets,
             children: [
-              Text('選擇星期', style: theme.textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.s),
-              Row(
-                children: List.generate(7, (index) {
-                  final day = index + 1;
-                  final selected = day == _selectedDay;
-                  final isToday = day == today;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2.5),
-                      child: Material(
-                        color: selected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => setState(() => _selectedDay = day),
-                          child: SizedBox(
-                            height: 48,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _days[index],
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: selected
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurface,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isToday
-                                        ? (selected
-                                              ? theme.colorScheme.onPrimary
-                                              : theme.colorScheme.primary)
-                                        : Colors.transparent,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+              _DayPicker(
+                selectedDay: _selectedDay,
+                today: today,
+                onSelect: (day) => setState(() => _selectedDay = day),
               ),
-              const SizedBox(height: AppSpacing.l),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '星期$dayName 課程',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.m,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      '$selectedCourses 門課',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSecondaryContainer,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: AppDimensions.sectionGap),
+              AppSectionHeader(
+                title: '星期${_days[_selectedDay - 1]}',
+                caption: count == 0 ? null : '$count 門課',
               ),
-              const SizedBox(height: AppSpacing.s),
-              if (occupiedSlots.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Center(
-                      child: Text(
-                        '這天沒有排定課程',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
+              if (occupied.isEmpty)
+                const AppCard(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  child: AppEmptyView(
+                    icon: Icons.event_available_outlined,
+                    title: '這天沒有排定課程',
                   ),
                 )
               else
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Table(
-                    columnWidths: const {
-                      0: FixedColumnWidth(52),
-                      1: FixedColumnWidth(78),
-                      2: FlexColumnWidth(1),
-                    },
-                    border: TableBorder.all(
-                      color: theme.colorScheme.outlineVariant,
-                      width: 0.7,
-                    ),
+                AppCard(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: Column(
                     children: [
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
+                      for (var index = 0; index < occupied.length; index++) ...[
+                        if (index > 0) const Divider(height: 1),
+                        _SlotRow(
+                          slot: occupied[index],
+                          courses: bySlot[occupied[index].code]!,
                         ),
-                        children: [
-                          _header('節次', theme),
-                          _header('時間', theme),
-                          _header('課程', theme),
-                        ],
-                      ),
-                      for (final slot in occupiedSlots)
-                        TableRow(
-                          children: [
-                            _slotLabel(slot.code, theme),
-                            _slotLabel(slot.time, theme),
-                            _courseCell(coursesBySlot[slot.code]!, theme),
-                          ],
-                        ),
+                      ],
                     ],
                   ),
                 ),
+              const SizedBox(height: AppDimensions.sectionGap),
+              Center(
+                child: Text(
+                  '課程資料來自校務系統，實際異動以學校公告為準',
+                  style: theme.textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ],
           );
         },
       ),
     );
   }
+}
 
-  Widget _header(String value, ThemeData theme) => Padding(
-    padding: const EdgeInsets.symmetric(
-      vertical: AppSpacing.m,
-      horizontal: AppSpacing.s,
-    ),
-    child: Center(
-      child: Text(
-        value,
-        style: TextStyle(
-          color: theme.colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    ),
-  );
+/// 星期選擇：單列 7 格，今天以圓點標記。
+class _DayPicker extends StatelessWidget {
+  const _DayPicker({
+    required this.selectedDay,
+    required this.today,
+    required this.onSelect,
+  });
 
-  Widget _slotLabel(String value, ThemeData theme) => Container(
-    constraints: const BoxConstraints(minHeight: 64),
-    alignment: Alignment.center,
-    padding: const EdgeInsets.all(AppSpacing.s),
-    child: Text(
-      value,
-      textAlign: TextAlign.center,
-      style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-    ),
-  );
+  final int selectedDay;
+  final int today;
+  final ValueChanged<int> onSelect;
 
-  Widget _courseCell(List<Map<String, String>> courses, ThemeData theme) =>
-      Container(
-        constraints: const BoxConstraints(minHeight: 64),
-        padding: const EdgeInsets.all(AppSpacing.s),
-        child: courses.isEmpty
-            ? Center(
-                child: Text(
-                  '空堂',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        for (var index = 0; index < 7; index++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index == 6 ? 0 : 6),
+              child: Semantics(
+                selected: index + 1 == selectedDay,
+                button: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onSelect(index + 1),
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: index + 1 == selectedDay
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _days[index],
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: index + 1 == selectedDay
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: index + 1 == today
+                                ? (index + 1 == selectedDay
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.primary)
+                                : Colors.transparent,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var index = 0; index < courses.length; index++) ...[
-                    if (index > 0) const Divider(height: AppSpacing.m),
-                    Text(
-                      courses[index]['name'] ?? '',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if ((courses[index]['class'] ?? '').isNotEmpty)
-                      Text(
-                        courses[index]['class']!,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    if ((courses[index]['room'] ?? '').isNotEmpty)
-                      Text(
-                        courses[index]['room']!,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    if ((courses[index]['teacher'] ?? '').isNotEmpty)
-                      Text(
-                        courses[index]['teacher']!,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                  ],
-                ],
               ),
-      );
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 一節課：左側時間，右側課程；多門課以分隔線區隔。
+class _SlotRow extends StatelessWidget {
+  const _SlotRow({required this.slot, required this.courses});
+
+  final ({String code, String start, String end}) slot;
+  final List<Map<String, String>> courses;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.cardPadding,
+        vertical: AppDimensions.rowVertical,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 56,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _periodLabel(slot.code),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${slot.start}\n${slot.end}',
+                  style: theme.textTheme.bodySmall?.copyWith(height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < courses.length; index++) ...[
+                  if (index > 0) const SizedBox(height: AppSpacing.s),
+                  Text(
+                    courses[index]['name'] ?? '',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                          courses[index]['room'],
+                          courses[index]['teacher'],
+                          courses[index]['class'],
+                        ]
+                        .whereType<String>()
+                        .where((value) => value.isNotEmpty)
+                        .join(' · '),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _periodLabel(String code) {
+  final asNumber = int.tryParse(code);
+  return asNumber == null ? '第 $code 節' : '第 $asNumber 節';
 }
 
 Set<int> _parseWeekdays(String value) =>
@@ -310,18 +292,18 @@ Set<int> _parseWeekdays(String value) =>
 
 Set<String> _parsePeriods(String value) {
   final result = <String>{};
-  final letters = RegExp(r'[MNABCD]')
-      .allMatches(value.toUpperCase())
-      .map((match) => match.group(0)!)
-      .where((code) => _slots.any((slot) => slot.code == code));
-  result.addAll(letters);
+  for (final match in RegExp(r'[MNABCD]').allMatches(value.toUpperCase())) {
+    final code = match.group(0)!;
+    if (_slots.any((slot) => slot.code == code)) result.add(code);
+  }
   for (final match in RegExp(r'\d{4}|\d{1,2}').allMatches(value)) {
     final token = match.group(0)!;
     if (token.length == 4) {
       final start = int.tryParse(token.substring(0, 2));
       final end = int.tryParse(token.substring(2));
-      if (start == null || end == null || end < start || end - start > 6)
+      if (start == null || end == null || end < start || end - start > 6) {
         continue;
+      }
       for (var period = start; period <= end; period++) {
         final code = period.toString().padLeft(2, '0');
         if (_slots.any((slot) => slot.code == code)) result.add(code);

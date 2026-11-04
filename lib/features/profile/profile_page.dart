@@ -1,4 +1,9 @@
-/// Student profile from the read-only A0207S module.
+/// 個人資料頁：識別資訊 → 學籍 → 聯絡 → 更多，四層遞減的資訊層級。
+///
+/// 設計原則：
+/// - 身份識別不放在卡片裡，直接以大字與留白建立焦點。
+/// - 相關欄位合併在同一張卡內以分隔線排列，不為每個欄位各開卡片。
+/// - 次要資料收合，控制頁面長度。
 library;
 
 import 'package:flutter/material.dart';
@@ -6,9 +11,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
+import '../../core/theme/app_dimensions.dart';
+import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../data/datasources/webforms_student_api.dart';
+import '../../core/widgets/app_surfaces.dart';
+import '../../domain/entities/student_profile.dart';
 import '../student_data_providers.dart';
+
+/// 一個標籤＋值的資料列。
+typedef _ProfileRow = ({String label, String value});
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -16,7 +27,6 @@ class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(profileProvider);
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('個人資料'),
@@ -31,101 +41,47 @@ class ProfilePage extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
             tooltip: '重新載入',
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: data.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: TextButton.icon(
-            onPressed: () => ref.invalidate(profileProvider),
-            icon: const Icon(Icons.refresh),
-            label: Text('資料載入失敗，點擊重試：$error'),
-          ),
+        loading: () => const AppLoadingView(message: '正在載入個人資料'),
+        error: (error, _) => AppErrorView(
+          message: '$error',
+          onRetry: () => ref.invalidate(profileProvider),
         ),
         data: (profile) {
-          final name = profile.valueFor(const ['姓名', '中文姓名']);
-          final studentId = profile.valueFor(const ['學號', '學生學號']);
-          final requestedLabels = <String>[
-            '姓名', '中文姓名', '學號', '學生學號', '帳號', '出生日期', '電子信箱',
-            '戶籍地址', '通訊地址', '學籍目前狀態', '聯絡人', '緊急聯絡人電話',
-          ];
-          final otherFields = profile.fields.where((field) {
-            final label = field['label'] ?? '';
-            return !requestedLabels.any(label.contains) &&
-                !label.contains('身分證') && !label.contains('護照號碼');
-          }).toList();
-          if (profile.fields.isEmpty) {
-            return const Center(child: Text('校務系統沒有回傳個人資料'));
+          if (profile.isEmpty) {
+            return const AppEmptyView(
+              icon: Icons.badge_outlined,
+              title: '校務系統沒有回傳個人資料',
+            );
           }
-          return ListView(
-            padding: const EdgeInsets.all(AppSpacing.l),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.l),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 42,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        backgroundImage: profile.photo == null
-                            ? null
-                            : MemoryImage(profile.photo!),
-                        child: profile.photo == null
-                            ? Text(name.isEmpty ? '學' : name.substring(0, 1))
-                            : null,
-                      ),
-                      const SizedBox(width: AppSpacing.m),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name.isEmpty ? '學生資料' : name,
-                              style: theme.textTheme.titleLarge,
-                            ),
-                            if (studentId.isNotEmpty) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              Text('學號／帳號：$studentId'),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              _ProfileSection(
-                title: '學籍資料',
-                fields: [
-                  ('出生年月日', profile.valueFor(const ['出生日期'])),
-                  ('學籍狀態', profile.valueFor(const ['學籍目前狀態', '學籍狀態'])),
+          final academic = _academicRows(profile);
+          final contact = _contactRows(profile);
+          final extra = _extraRows(profile);
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(profileProvider),
+            child: ListView(
+              padding: AppDimensions.pageInsets,
+              children: [
+                _IdentityBlock(profile: profile),
+                if (academic.isNotEmpty) ...[
+                  const SizedBox(height: AppDimensions.sectionGap),
+                  const AppSectionHeader(title: '學籍資訊'),
+                  _InfoSection(rows: academic),
                 ],
-              ),
-              _ProfileSection(
-                title: '聯絡資料',
-                fields: [
-                  ('電子信箱', profile.valueFor(const ['電子信箱', 'E-mail'])),
-                  ('戶籍地址', profile.valueFor(const ['戶籍地址'])),
-                  ('通訊地址', profile.valueFor(const ['通訊地址'])),
+                if (contact.isNotEmpty) ...[
+                  const SizedBox(height: AppDimensions.sectionGap),
+                  const AppSectionHeader(title: '聯絡資訊'),
+                  _InfoSection(rows: contact),
                 ],
-              ),
-              _ProfileSection(
-                title: '緊急聯絡人',
-                fields: [
-                  ('姓名', profile.valueFor(const ['聯絡人', '緊急聯絡人'])),
-                  ('電話', profile.valueFor(const ['聯絡人電話', '緊急聯絡人電話'])),
+                if (extra.isNotEmpty) ...[
+                  const SizedBox(height: AppDimensions.sectionGap),
+                  _ExtraSection(rows: extra),
                 ],
-              ),
-              if (otherFields.isNotEmpty)
-                _ProfileSection(
-                  title: '其他資料',
-                  fields: [
-                    for (final field in otherFields)
-                      (field['label'] ?? '', field['value'] ?? ''),
-                  ],
-                ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -133,36 +89,222 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
-class _ProfileSection extends StatelessWidget {
-  const _ProfileSection({required this.title, required this.fields});
+/// 學籍相關欄位（只放校務系統實際有回傳且有辨識意義的資料）。
+List<_ProfileRow> _academicRows(StudentProfile profile) => [
+  if (profile.statusLabel.isNotEmpty)
+    (label: '學籍狀態', value: profile.statusLabel),
+  if (profile.studentTypeLabel.isNotEmpty)
+    (label: '學生身分別', value: profile.studentTypeLabel),
+  if (profile.admissionLabel.isNotEmpty)
+    (label: '入學年月', value: profile.admissionLabel),
+  if (profile.feeTypeLabel.isNotEmpty)
+    (label: '費用別', value: profile.feeTypeLabel),
+  if (profile.nationality.isNotEmpty) (label: '國籍', value: profile.nationality),
+  if (profile.birthDateLabel.isNotEmpty)
+    (label: '出生日期', value: profile.birthDateLabel),
+];
 
-  final String title;
-  final List<(String, String)> fields;
+/// 聯絡欄位：同一內容只出現一次（實測戶籍電話、通訊電話、行動電話常為同號）。
+List<_ProfileRow> _contactRows(StudentProfile profile) {
+  final rows = <_ProfileRow>[];
+  void add(String label, String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    if (rows.any((row) => row.value == trimmed)) return;
+    rows.add((label: label, value: trimmed));
+  }
+
+  add('電子信箱', profile.email);
+  add('行動電話', profile.mobile);
+  add('通訊電話', profile.currentPhone);
+  add('戶籍電話', profile.registeredPhone);
+  add('通訊地址', profile.currentAddress);
+  add('戶籍地址', profile.registeredAddress);
+  add('緊急聯絡人', profile.emergencyName);
+  add('緊急聯絡電話', profile.emergencyPhone);
+  add('緊急聯絡地址', profile.emergencyAddress);
+  return rows;
+}
+
+/// 次要資料：預設收合，避免首屏過長。
+List<_ProfileRow> _extraRows(StudentProfile profile) => [
+  if (profile.englishName.isNotEmpty)
+    (label: '英文姓名', value: profile.englishName),
+  if (profile.genderLabel.isNotEmpty) (label: '性別', value: profile.genderLabel),
+  if (profile.dormRoom.isNotEmpty) (label: '宿舍房號', value: profile.dormRoom),
+  if (profile.admissionRef.isNotEmpty)
+    (label: '入學文號', value: profile.admissionRef),
+];
+
+/// 個人識別區：頭像、姓名、學號、學籍狀態（無卡片）。
+class _IdentityBlock extends StatelessWidget {
+  const _IdentityBlock({required this.profile});
+
+  final StudentProfile profile;
 
   @override
   Widget build(BuildContext context) {
-    final visibleFields = fields
-        .where((field) => field.$1.isNotEmpty && field.$2.trim().isNotEmpty)
-        .toList();
-    if (visibleFields.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final name = profile.displayName;
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.m),
-      child: Card(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.l, AppSpacing.m, AppSpacing.l, AppSpacing.xs,
-              ),
-              child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+      padding: const EdgeInsets.only(top: AppSpacing.s, bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: AppDimensions.avatarLarge / 2,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            backgroundImage: profile.photo == null
+                ? null
+                : MemoryImage(profile.photo!),
+            child: profile.photo == null
+                ? Text(
+                    name.isEmpty ? '?' : name.substring(0, 1),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: AppSpacing.l),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: theme.textTheme.headlineSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (profile.studentId.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    profile.studentId,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+                if (profile.statusLabel.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.s),
+                  _StatusChip(label: profile.statusLabel),
+                ],
+              ],
             ),
-            for (final field in visibleFields)
-              ListTile(
-                title: Text(field.$1),
-                subtitle: Text(field.$2),
-                dense: true,
-              ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.m,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+/// 單一卡片內以分隔線分列。
+class _InfoSection extends StatelessWidget {
+  const _InfoSection({required this.rows});
+
+  final List<_ProfileRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.cardPadding,
+        vertical: AppSpacing.xs,
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < rows.length; index++) ...[
+            if (index > 0) const Divider(height: 1),
+            _InfoRow(row: rows[index]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.row});
+
+  final _ProfileRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppDimensions.rowVertical),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 84,
+            child: Text(row.label, style: theme.textTheme.bodySmall),
+          ),
+          const SizedBox(width: AppSpacing.s),
+          Expanded(child: Text(row.value, style: theme.textTheme.bodyMedium)),
+        ],
+      ),
+    );
+  }
+}
+
+/// 次要資料收合區。
+class _ExtraSection extends StatelessWidget {
+  const _ExtraSection({required this.rows});
+
+  final List<_ProfileRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AppCard(
+      padding: EdgeInsets.zero,
+      clip: true,
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text('更多資料', style: theme.textTheme.titleSmall),
+          tilePadding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.cardPadding,
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppDimensions.cardPadding,
+            0,
+            AppDimensions.cardPadding,
+            AppSpacing.s,
+          ),
+          children: [
+            for (var index = 0; index < rows.length; index++) ...[
+              if (index > 0) const Divider(height: 1),
+              _InfoRow(row: rows[index]),
+            ],
           ],
         ),
       ),
