@@ -44,7 +44,7 @@ Future<void> main() async {
   );
 }
 
-/// 啟動還原控制器：完成後isReady=true。
+/// 啟動還原控制器：完成後 isReady=true。
 final appReadyProvider = NotifierProvider<AppReadyController, bool>(
   AppReadyController.new,
 );
@@ -74,7 +74,12 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
     try {
       final repo = ref.read(authRepositoryProvider);
       final ok = await repo.restoreSession();
-      if (ok) ref.read(authStatusProvider.notifier).loggedIn();
+      if (ok) {
+        final account =
+            await ref.read(authSessionStorageProvider).readAccount() ?? '';
+        // 還原時同樣走 Session 世代，確保資料 Provider 以該帳號重取。
+        ref.read(authStatusProvider.notifier).restore(account: account);
+      }
     } catch (_) {
       // 還原失效 → 未登入，UI 走登入流程。
     } finally {
@@ -88,9 +93,7 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
     if (!ready) {
       return MaterialApp(
         theme: ThemeData(useMaterial3: true),
-        home: const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
     return const NptuCampusApp();

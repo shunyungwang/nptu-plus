@@ -1,8 +1,6 @@
 /// Auth Repository 實作（data 層）。
 library;
 
-import 'dart:convert';
-
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 
@@ -19,8 +17,8 @@ class AuthRepositoryImpl implements AuthRepository {
     this._api, {
     required CookieJar cookieJar,
     required AuthSessionStorage storage,
-  })  : _jar = cookieJar,
-        _storage = storage;
+  }) : _jar = cookieJar,
+       _storage = storage;
 
   final WebFormsAuthApi _api;
   final CookieJar _jar;
@@ -31,7 +29,7 @@ class AuthRepositoryImpl implements AuthRepository {
   static Uri get _baseUri => Uri.parse(AppConstants.baseUrl);
 
   @override
-  Future<LoginPreparation> loadLoginPreparation() {
+  Future<LoginPreparation> prepareLogin() {
     _captchaNonce++;
     return _api.fetchLoginPreparation(nonce: _captchaNonce);
   }
@@ -56,10 +54,7 @@ class AuthRepositoryImpl implements AuthRepository {
           // 轉址 script 存在但沒拿到 .PaAuth → 視為異常。
           throw ServerFailure(detail: '登入未核發憑證');
         }
-        await _storage.saveSession(
-          paAuthCookie: authCookie,
-          account: account,
-        );
+        await _storage.saveSession(account: account, paAuthCookie: authCookie);
         return true;
       case LoginCaptchaError():
         throw CaptchaFailure();
@@ -75,7 +70,9 @@ class AuthRepositoryImpl implements AuthRepository {
     if (!jarHasAuth && stored == null) return false;
     if (!jarHasAuth && stored != null) {
       // 重新注入上次的 .PaAuth（Cookie jar 冷啟動為空）。
-      final cookie = Cookie.fromSetCookieValue('${AppConstants.kAuthCookie}=$stored');
+      final cookie = Cookie.fromSetCookieValue(
+        '${AppConstants.kAuthCookie}=$stored',
+      );
       await _jar.saveFromResponse(_baseUri, [cookie]);
     }
     // 用需要授權的頁面驗證是否仍有效（Phase 3 樣態：殼頁 = 已過期）。
@@ -143,6 +140,3 @@ String maskAccount(String account) {
   final head = account.substring(0, account.length - 4);
   return '$head****';
 }
-
-/// json 編碼輔助（避免 test 檔案直接導 dart:convert）。
-String encodeJson(Object? o) => jsonEncode(o);

@@ -24,3 +24,7 @@ android/*.keystore
 .env.*
 !.env.example
 *.log
+
+# Agent/editor metadata and golden failure artifacts.
+.freebuff/
+test/failures/

@@ -59,6 +59,12 @@ class DataParseFailure extends Failure {
     : super(message: detail ?? '資料解析失敗，請稍後再試。');
 }
 
+/// 該功能在此版本尚未支援（保留下來給未實作的校務模組）。
+class UnsupportedFailure extends Failure {
+  UnsupportedFailure({required String detail, super.cause})
+    : super(message: detail);
+}
+
 /// 未知失敗。
 class UnknownFailure extends Failure {
   UnknownFailure({super.cause}) : super(message: '發生未預期的錯誤，請稍後再試。');

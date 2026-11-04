@@ -22,9 +22,17 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
   (ref) => const FlutterSecureStorage(),
 );
 
-/// Http Dio 建置（依 CookieJar）。
+/// 進行中請求的追蹤器：換帳號時可整批取消，避免舊請求回寫新帳號畫面。
+final sessionRequestTrackerProvider = Provider<SessionRequestTracker>(
+  (ref) => SessionRequestTracker(),
+);
+
+/// Http Dio 建置（依 CookieJar + 請求追蹤器）。
 final dioProvider = Provider<Dio>(
-  (ref) => buildWebFormsDio(cookieJar: ref.watch(cookieJarProvider)),
+  (ref) => buildWebFormsDio(
+    cookieJar: ref.watch(cookieJarProvider),
+    tracker: ref.watch(sessionRequestTrackerProvider),
+  ),
 );
 
 /// 學校 WebForms 認證 API。
@@ -37,7 +45,7 @@ final authSessionStorageProvider = Provider<AuthSessionStorage>(
   (ref) => AuthSessionStorage(ref.watch(secureStorageProvider)),
 );
 
-/// Auth Repository（唯一入口）。
+/// 校務系統 Auth Repository（唯一登入流程：webap WebForms + 圖形驗證碼）。
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepositoryImpl(
     ref.watch(authApiProvider),

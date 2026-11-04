@@ -1,65 +1,20 @@
-/// 登入頁。
-///
-/// WebForms 登入頁，含 Session 綁定驗證碼與伺服器錯誤回饋。
+/// 登入頁：校務系統（webap）帳號密碼 + 圖形驗證碼。
 library;
 
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
-import '../../core/errors/failures.dart';
-import '../../domain/entities/auth_session.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart' as routes;
-import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_radius.dart';
+import '../../core/errors/failures.dart';
+import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_spacing.dart';
-
-/// 登入頁面內部的本地 UI 狀態。
-class LoginUiState {
-  const LoginUiState({
-    this.obscurePassword = true,
-    this.captchUrl = AppConstants.captchaImagePath,
-  });
-
-  /// 密碼是否遮蔽。
-  final bool obscurePassword;
-
-  /// 驗證碼圖片的載入 URL（帶 cache-busting query）。
-  final String captchUrl;
-
-  LoginUiState copyWith({bool? obscurePassword, String? captchUrl}) =>
-      LoginUiState(
-        obscurePassword: obscurePassword ?? this.obscurePassword,
-        captchUrl: captchUrl ?? this.captchUrl,
-      );
-}
-
-class LoginUiController extends Notifier<LoginUiState> {
-  int _captchaNonce = 0;
-
-  @override
-  LoginUiState build() => const LoginUiState();
-
-  void togglePassword() =>
-      state = state.copyWith(obscurePassword: !state.obscurePassword);
-
-  /// 重新取得驗證碼（點擊圖片 → 新 query，Phase 3 實測行為）。
-  void refreshCaptcha() {
-    _captchaNonce++;
-    state = state.copyWith(
-      captchUrl: '${AppConstants.captchaImagePath}?$_captchaNonce',
-    );
-  }
-}
-
-final loginUiProvider = NotifierProvider<LoginUiController, LoginUiState>(
-  LoginUiController.new,
-);
+import '../../domain/entities/auth_session.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -73,16 +28,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
   final _captchaController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   bool _submitting = false;
-  bool _loadingCaptcha = true;
+  bool _obscurePassword = true;
+  bool _loadingCaptcha = false;
   int _captchaGeneration = 0;
   LoginPreparation? _preparation;
-  String? _loadError;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _refreshCaptcha();
+    _loadPreparation();
   }
 
   @override
@@ -95,220 +52,255 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_preparation == null) {
-      setState(() => _loadError = '驗證碼尚未載入，請稍後重試。');
+    final preparation = _preparation;
+    if (preparation == null) {
+      setState(() => _error = '驗證碼尚未載入，請稍後重試。');
       return;
     }
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     try {
-      await ref.read(authStatusProvider.notifier).signIn(
-        account: _accountController.text.trim(),
-        password: _passwordController.text,
-        captcha: _captchaController.text.trim(),
-        preparation: _preparation!,
-      );
-      if (mounted) GoRouter.of(context).go(routes.kRouteDashboard);
+      await ref
+          .read(authStatusProvider.notifier)
+          .signIn(
+            account: _accountController.text.trim(),
+            password: _passwordController.text,
+            captcha: _captchaController.text.trim(),
+            preparation: preparation,
+          );
+      if (mounted) context.go(routes.kRouteDashboard);
     } catch (error) {
       if (!mounted) return;
-      setState(() => _loadError = error is Failure
-          ? error.message
-          : '登入失敗，請檢查網路後重試。');
+      setState(() => _error = _describeError(error));
       _captchaController.clear();
-      await _refreshCaptcha();
+      await _loadPreparation();
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
-  Future<void> _refreshCaptcha() async {
+  String _describeError(Object error) {
+    if (error is Failure) return error.message;
+    if (error is DioException && error.error is Failure) {
+      return (error.error as Failure).message;
+    }
+    if (error is TimeoutException) return '校務系統連線逾時，請檢查網路或 VPN。';
+    return '登入失敗，請稍後再試。';
+  }
+
+  Future<void> _loadPreparation() async {
     final generation = ++_captchaGeneration;
     setState(() {
       _preparation = null;
-      if (_loadError?.startsWith('無法載入驗證碼') ?? false) _loadError = null;
       _loadingCaptcha = true;
     });
     try {
-      final prep = await ref
+      final preparation = await ref
           .read(authStatusProvider.notifier)
-          .loadLoginPreparation()
+          .prepareLogin()
           .timeout(const Duration(seconds: 40));
-      if (mounted && generation == _captchaGeneration) {
-        setState(() {
-          _preparation = prep;
-          _loadingCaptcha = false;
-        });
-      }
+      if (!mounted || generation != _captchaGeneration) return;
+      setState(() {
+        _preparation = preparation;
+        _loadingCaptcha = false;
+      });
     } catch (error) {
-      if (mounted && generation == _captchaGeneration) {
-        setState(() {
-          _loadError = _describeCaptchaError(error);
-          _loadingCaptcha = false;
-        });
-      }
+      if (!mounted || generation != _captchaGeneration) return;
+      setState(() {
+        _loadingCaptcha = false;
+        _error = _describeError(error);
+      });
     }
-  }
-
-  String _describeCaptchaError(Object error) {
-    if (error is Failure) return error.message;
-    if (error is DioException) {
-      if (error.error is Failure) return (error.error as Failure).message;
-      final status = error.response?.statusCode;
-      if (status != null) {
-        final contentType = error.response?.headers.value(Headers.contentTypeHeader) ?? 'unknown';
-        final cause = error.error?.toString() ?? error.type.name;
-        return 'HTTP $status ($contentType)，請求 ${error.requestOptions.uri.path} 失敗：$cause';
-      }
-      final details = error.message;
-      return details == null || details.isEmpty
-          ? '連線校務系統失敗（${error.type.name}），請檢查網路或 VPN。'
-          : '連線校務系統失敗：$details';
-    }
-    if (error is TimeoutException) return '校務系統連線逾時，請檢查網路或 VPN。';
-    return '驗證碼載入失敗：$error';
   }
 
   @override
   Widget build(BuildContext context) {
-    final ui = ref.watch(loginUiProvider);
     final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.xxl,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ---- 品牌區 ----
-                    Icon(
-                      Icons.school,
-                      size: 64,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: AppSpacing.l),
-                    Text(
-                      '國立屏東大學',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineMedium,
-                    ),
-                    Text(
-                      '校務行政系統',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    // ---- 帳號 ----
-                    TextFormField(
-                      controller: _accountController,
-                      decoration: const InputDecoration(
-                        labelText: '帳號（學號）',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      maxLength: 30,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? '請輸入帳號' : null,
-                    ),
-                    const SizedBox(height: AppSpacing.m),
-                    // ---- 密碼 ----
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: ui.obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: '密碼',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            ui.obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
+        child: LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppDimensions.pagePadding,
+                vertical: constraints.maxHeight > 700 ? 40 : AppSpacing.xl,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          tooltip: ui.obscurePassword ? '顯示密碼' : '隱藏密碼',
-                          onPressed: ref
-                              .read(loginUiProvider.notifier)
-                              .togglePassword,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.school_outlined,
+                            size: AppDimensions.iconMedium,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
                         ),
                       ),
-                      maxLength: 30,
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? '請輸入密碼' : null,
-                    ),
-                    const SizedBox(height: AppSpacing.m),
-                    // ---- 驗證碼 ----
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _captchaController,
-                            keyboardType: TextInputType.number,
-                            maxLength: 4,
-                            decoration: const InputDecoration(
-                              labelText: '驗證碼（4 位數字）',
-                              counterText: '',
+                      const SizedBox(height: AppSpacing.l),
+                      Text('國立屏東大學', style: theme.textTheme.headlineSmall),
+                      const SizedBox(height: AppDimensions.tightGap),
+                      Text(
+                        '校務系統登入',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      TextFormField(
+                        controller: _accountController,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.username],
+                        decoration: const InputDecoration(labelText: '帳號（學號）'),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                            ? '請輸入帳號'
+                            : null,
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.password],
+                        decoration: InputDecoration(
+                          labelText: '密碼',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: AppDimensions.iconMedium,
                             ),
-                            validator: (v) => (v == null || v.length < 4)
-                                ? '請輸入 4 位數字驗證碼'
-                                : null,
+                            tooltip: _obscurePassword ? '顯示密碼' : '隱藏密碼',
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.m),
-                        GestureDetector(
-                          onTap: _submitting ? null : _refreshCaptcha,
-                          child: Container(
-                            height: 48,
-                            width: 128,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                              border: Border.all(
-                                color: theme.colorScheme.outlineVariant,
+                        validator: (value) =>
+                            (value == null || value.isEmpty) ? '請輸入密碼' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _captchaController,
+                              keyboardType: TextInputType.number,
+                              maxLength: 4,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) =>
+                                  _submitting ? null : _submit(),
+                              decoration: const InputDecoration(
+                                labelText: '驗證碼',
+                                helperText: '4 位數字',
+                                counterText: '',
+                              ),
+                              validator: (value) =>
+                                  (value == null || value.trim().length < 4)
+                                  ? '請輸入 4 位數字驗證碼'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.m),
+                          Tooltip(
+                            message: '重新取得驗證碼',
+                            child: InkWell(
+                              onTap: _submitting ? null : _loadPreparation,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                height: AppDimensions.inputHeight,
+                                width: 116,
+                                decoration: BoxDecoration(
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                alignment: Alignment.center,
+                                child: _preparation != null
+                                    ? Image.memory(
+                                        Uint8List.fromList(
+                                          _preparation!.captchaBytes,
+                                        ),
+                                        gaplessPlayback: true,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, _, _) =>
+                                            const Icon(Icons.refresh),
+                                      )
+                                    : _loadingCaptcha
+                                    ? const SizedBox.square(
+                                        dimension: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.refresh,
+                                        size: AppDimensions.iconMedium,
+                                      ),
                               ),
                             ),
-                            alignment: Alignment.center,
-                            child: _preparation != null
-                                ? Image.memory(
-                                    Uint8List.fromList(_preparation!.captchaBytes),
-                                    gaplessPlayback: true,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, _, _) => const Icon(Icons.refresh),
-                                  )
-                                : _loadingCaptcha
-                                    ? const CircularProgressIndicator(strokeWidth: 2)
-                                    : const Icon(Icons.refresh),
                           ),
+                        ],
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.m),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: AppDimensions.iconSmall,
+                              color: theme.colorScheme.error,
+                            ),
+                            const SizedBox(width: AppSpacing.s),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                    if (_loadError != null) ...[
-                      const SizedBox(height: AppSpacing.s),
-                      Text(_loadError!, textAlign: TextAlign.center,
-                          style: TextStyle(color: theme.colorScheme.error)),
+                      const SizedBox(height: 28),
+                      FilledButton(
+                        onPressed: _submitting ? null : _submit,
+                        child: _submitting
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('登入'),
+                      ),
+                      const SizedBox(height: AppSpacing.l),
+                      Text(
+                        '同一帳號僅允許單一登入；忘記密碼請洽學校資訊服務單位。',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ],
-                    const SizedBox(height: AppSpacing.xl),
-                    FilledButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('登入'),
-                    ),
-                    const SizedBox(height: AppSpacing.l),
-                    Text(
-                      '同一帳號僅允許單一登入；未正常登出會暫時鎖定 5 分鐘。',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

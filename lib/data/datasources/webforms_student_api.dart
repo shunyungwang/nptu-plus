@@ -9,43 +9,16 @@ import 'package:html/parser.dart' as html_parser;
 
 import '../../core/constants/app_constants.dart';
 import '../../core/errors/failures.dart';
+import '../../domain/entities/semester_table.dart';
+import '../../domain/entities/student_profile.dart';
+import '../parsers/student_profile_parser.dart';
 import '../parsers/webforms_parsers.dart';
+import 'student_data_api.dart';
 
-class SemesterOption {
-  const SemesterOption(this.value, this.label);
-  final String value;
-  final String label;
-}
+// 既有頁面仍從這裡匯入 SemesterTable／SemesterOption。
+export '../../domain/entities/semester_table.dart';
 
-class SemesterTable {
-  const SemesterTable({
-    required this.semesters,
-    required this.selected,
-    required this.rows,
-    this.headers = const [],
-  });
-  final List<SemesterOption> semesters;
-  final String selected;
-  final List<List<String>> rows;
-  final List<String> headers;
-}
-
-class StudentProfile {
-  const StudentProfile({required this.fields, required this.photo});
-
-  final List<Map<String, String>> fields;
-  final Uint8List? photo;
-
-  String valueFor(Iterable<String> labels) {
-    for (final field in fields) {
-      final label = field['label'] ?? '';
-      if (labels.any(label.contains)) return field['value'] ?? '';
-    }
-    return '';
-  }
-}
-
-class WebFormsStudentApi {
+class WebFormsStudentApi implements StudentDataApi {
   WebFormsStudentApi(this._dio, {this.onSessionExpired});
   final Dio _dio;
   final void Function()? onSessionExpired;
@@ -91,6 +64,7 @@ class WebFormsStudentApi {
     throw error;
   }
 
+  @override
   Future<List<Map<String, String>>> announcements() async {
     final doc = html_parser.parse(await _get(AppConstants.mainPagePath));
     final table = doc.querySelector('#HOTNEWS_dgData');
@@ -112,6 +86,7 @@ class WebFormsStudentApi {
         .toList();
   }
 
+  @override
   Future<List<Map<String, String>>> courses() async {
     final doc = html_parser.parse(await _get(_coursesPath));
     final table = doc.querySelector('#A0515S1_dgData');
@@ -142,37 +117,12 @@ class WebFormsStudentApi {
         .toList();
   }
 
+  @override
   Future<StudentProfile> profile() async {
     final page = await _get(_profilePath);
-    final doc = html_parser.parse(page);
-    final rows = <Map<String, String>>[];
-    for (final row in doc.querySelectorAll('tr')) {
-      final cells = row.querySelectorAll('td');
-      for (var i = 0; i + 1 < cells.length; i += 2) {
-        final label = cells[i].text.trim().replaceAll(RegExp(r'[:：\s]+$'), '');
-        final valueCell = cells[i + 1];
-        final field = valueCell.querySelector('input,select,textarea');
-        final value = switch (field?.localName) {
-          'select' =>
-            field?.querySelector('option[selected]')?.text.trim() ??
-                field?.attributes['value'] ??
-                '',
-          'input' => field?.attributes['value'] ?? '',
-          'textarea' => field?.text.trim() ?? '',
-          _ => valueCell.text.trim(),
-        };
-        if (label.isNotEmpty && value.isNotEmpty)
-          rows.add({'label': label, 'value': value});
-      }
-    }
-    final fields = rows.where((row) {
-      final label = row['label'] ?? '';
-      return !label.contains('身分證') && !label.contains('護照號碼');
-    }).toList();
+    final parsed = parseStudentProfile(page);
+    final imageSource = parsed.photoSource;
     Uint8List? photo;
-    final imageSource = doc
-        .querySelector('#A0207A_imgSTD_PIC')
-        ?.attributes['src'];
     if (imageSource != null && imageSource.isNotEmpty) {
       final profileUri = Uri.parse(AppConstants.baseUrl).resolve(_profilePath);
       final photoUri = profileUri.resolve(imageSource);
@@ -191,9 +141,10 @@ class WebFormsStudentApi {
         // Keep the profile fields available when the optional photo is unavailable.
       }
     }
-    return StudentProfile(fields: fields, photo: photo);
+    return parsed.profile.withPhoto(photo);
   }
 
+  @override
   Future<SemesterTable> grades({String? semester}) => _semesterTable(
     path: _gradesPath,
     selectName: 'A0809Q:ddlSYSE',
@@ -202,6 +153,7 @@ class WebFormsStudentApi {
     semester: semester,
   );
 
+  @override
   Future<SemesterTable> attendance({String? semester}) => _semesterTable(
     path: _attendancePath,
     selectName: 'B0105S:ddlSYSE',
@@ -312,15 +264,12 @@ class WebFormsStudentApi {
         ),
       ];
     }
-    final rows =
-        tableRows
-            .skip(headerIndex + 1)
-            .map(
-              (row) =>
-                  row.querySelectorAll('th,td').map(_tableCellValue).toList(),
-            )
-            .toList() ??
-        const <List<String>>[];
+    final rows = tableRows
+        .skip(headerIndex + 1)
+        .map(
+          (row) => row.querySelectorAll('th,td').map(_tableCellValue).toList(),
+        )
+        .toList();
     return SemesterTable(
       semesters: options,
       selected: selected,

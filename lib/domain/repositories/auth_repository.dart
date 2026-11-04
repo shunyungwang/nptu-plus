@@ -4,10 +4,10 @@ library;
 import '../entities/auth_session.dart';
 
 abstract class AuthRepository {
-  /// 取得登入前置資料：登入頁隱藏欄位 + 當前 Session 綁定的驗證碼圖。
-  Future<LoginPreparation> loadLoginPreparation();
+  /// 取得登入前置資料（登入頁隱藏欄位 + 圖形驗證碼）。
+  Future<LoginPreparation> prepareLogin();
 
-  /// 登入（內部含完整 WebForms 握手）。
+  /// 登入（WebForms 握手流程）。
   /// 成功回 true；失敗擲回對應 [Failure]。
   Future<bool> signIn({
     required String account,
@@ -16,10 +16,9 @@ abstract class AuthRepository {
     required LoginPreparation preparation,
   });
 
-  /// 還原已保存的登入憑證（App 冷啟動時呼叫）；
-  /// 回傳是否已重建可用的登入 Session。
+  /// 還原已保存的登入憑證（App 冷啟動時呼叫）。
   Future<bool> restoreSession();
 
-  /// 真實登出：POST `CommonHeader:ibtLogOut` + 清空憑證儲存。
+  /// 登出並清除本機憑證；回傳伺服器端是否確認登出。
   Future<bool> signOut();
 }

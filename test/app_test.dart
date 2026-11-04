@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nptu_campus/app/app.dart';
 import 'package:nptu_campus/app/providers.dart';
-import 'package:nptu_campus/core/theme/app_theme.dart';
+import 'package:nptu_campus/core/network/providers.dart';
 import 'package:nptu_campus/core/storage/theme_storage.dart';
+import 'package:nptu_campus/core/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/fake_auth.dart';
 
 void main() {
   group('主題持久化', () {
@@ -38,7 +41,7 @@ void main() {
       final dark = buildDarkTheme();
       expect(light.colorScheme.brightness, Brightness.light);
       expect(dark.colorScheme.brightness, Brightness.dark);
-      expect(light.colorScheme.background != dark.colorScheme.background, isTrue);
+      expect(light.colorScheme.surface != dark.colorScheme.surface, isTrue);
       expect(light.useMaterial3, isTrue);
       expect(dark.useMaterial3, isTrue);
     });
@@ -50,12 +53,16 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          ],
           child: const NptuCampusApp(),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.byType(MaterialApp), findsOneWidget);
+      expect(find.text('校務系統登入'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

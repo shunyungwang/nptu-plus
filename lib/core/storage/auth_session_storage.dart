@@ -1,7 +1,7 @@
 /// 登入憑證安全儲存 — Android Keystore 保護（flutter_secure_storage）。
 ///
-/// 僅保存最小必要資訊：`.PaAuth` cookie 值 + 學號（利於 UI 顯示）；
-/// 密碼不儲存；僅保存必要的校務系統 Session 憑證與帳號。
+/// 僅保存最小必要資訊：學號與 WebForms 的 `.PaAuth` cookie 值。
+/// **密碼永不儲存。**
 library;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -16,11 +16,11 @@ class AuthSessionStorage {
   final FlutterSecureStorage _secure;
 
   Future<void> saveSession({
-    required String paAuthCookie,
     required String account,
+    required String paAuthCookie,
   }) async {
-    await _secure.write(key: kAuthCookieKey, value: paAuthCookie);
     await _secure.write(key: kAccountKey, value: account);
+    await _secure.write(key: kAuthCookieKey, value: paAuthCookie);
   }
 
   Future<String?> readAuthCookie() => _secure.read(key: kAuthCookieKey);
