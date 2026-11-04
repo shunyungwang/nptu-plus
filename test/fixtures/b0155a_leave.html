@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head><title>國立屏東大學 115學年 第1學期</title></head>
+<body>
+<form name="B0155APage" method="post" action="./B0155APage.aspx" id="B0155APage">
+  <input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+  <input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+  <input type="hidden" name="__LASTFOCUS" id="__LASTFOCUS" value="" />
+  <input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="VS-LEAVE" />
+  <input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="CCBDF9B1" />
+  <input type="hidden" name="__SCROLLPOSITIONX" id="__SCROLLPOSITIONX" value="0" />
+  <input type="hidden" name="__SCROLLPOSITIONY" id="__SCROLLPOSITIONY" value="0" />
+  <input type="hidden" name="__VIEWSTATEENCRYPTED" id="__VIEWSTATEENCRYPTED" value="" />
+  <input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="EV-LEAVE" />
+
+  <input type="image" name="CommonHeader:ibtLogOut" id="CommonHeader_ibtLogOut" src="../Images/logout.gif" />
+  <input type="text" name="CommonHeader:txtMsg" id="CommonHeader_txtMsg" readonly="readonly" value="" />
+
+  <table class="DgTable" id="B0155A_dgDataSession">
+    <tr><td>節次</td><td>時間</td><td>一</td><td>二</td><td>三</td><td>四</td><td>五</td><td>六</td><td>日</td></tr>
+    <tr><td>01</td><td>08:00</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>02</td><td>09:00</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </table>
+
+  <table id="TableInsert">
+    <tr>
+      <td>選擇假別：</td>
+      <td>
+        <select name="B0155A:ddlABSENCE" id="B0155A_ddlABSENCE">
+          <option selected="selected" value="B">B.事假</option>
+          <option value="C">C.病假</option>
+          <option value="J">J.生理假</option>
+          <option value="P">P.心理健康假</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td>請假日期：</td>
+      <td><input name="B0155A:txtEXCESE_DT" type="text" value="2026/11/05" id="B0155A_txtEXCESE_DT" class="Wdate" onfocus="WdatePicker({dateFmt:'yyyy/MM/dd',skin:'whyGreen',readOnly:true})" /></td>
+    </tr>
+    <tr>
+      <td>請假節次：</td>
+      <td id="B0155A_cblLESSON_ID">
+        <table>
+          <tr>
+            <td><input name="B0155A:cblLESSON_ID:0" type="checkbox" value="78" />M</td>
+            <td><input name="B0155A:cblLESSON_ID:1" type="checkbox" checked="checked" value="1" />01</td>
+            <td><input name="B0155A:cblLESSON_ID:2" type="checkbox" value="2" />02</td>
+            <td><input name="B0155A:cblLESSON_ID:3" type="checkbox" value="3" />03</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td>請假原因：</td>
+      <td><input name="B0155A:txtREASON" type="text" id="B0155A_txtREASON" /></td>
+    </tr>
+    <tr>
+      <td>附檔：</td>
+      <td><input type="file" name="B0155A:fuFILE" id="B0155A_fuFILE" /><br />(上傳檔案請勿超過4MB大小)</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><input type="image" name="B0155A:ibtSaveUp" id="B0155A_ibtSaveUp" title="存檔" alt="存檔" src="../Images/Common/Apply_M.gif" /></td>
+    </tr>
+  </table>
+
+  <table class="DgTable" cellspacing="0" rules="all" border="1" id="B0155A_dgData">
+    <tr class="TRHeaderStyle">
+      <td>刪除</td><td>請假日期</td><td>節次</td><td>假別</td><td>請假原因</td><td>審核狀態</td><td>&nbsp;</td>
+    </tr>
+    <tr>
+      <td><input id="B0155A_dgData_chkDel_0" type="checkbox" name="B0155A:dgData:_ctl2:chkDel" /></td>
+      <td><span id="B0155A_dgData_lblEXCUSE_DT_0">2026/11/05</span></td>
+      <td><span id="B0155A_dgData_lblLESSON_ID_0">01</span></td>
+      <td><span id="B0155A_dgData_lblCODENAME_0">事假 </span></td>
+      <td><span id="B0155A_dgData_lblREASON_0">感冒</span></td>
+      <td><span id="B0155A_dgData_lblCHECK_M_0">導師未審</span></td>
+      <td>&nbsp;</td>
+    </tr>
+    <tr>
+      <td><input id="B0155A_dgData_chkDel_1" type="checkbox" name="B0155A:dgData:_ctl3:chkDel" /></td>
+      <td><span id="B0155A_dgData_lblEXCUSE_DT_1">2026/10/12</span></td>
+      <td><span id="B0155A_dgData_lblLESSON_ID_1">03</span></td>
+      <td><span id="B0155A_dgData_lblCODENAME_1">事假 </span></td>
+      <td><span id="B0155A_dgData_lblREASON_1">返鄉</span></td>
+      <td><span id="B0155A_dgData_lblCHECK_M_1">已核准</span></td>
+      <td>&nbsp;</td>
+    </tr>
+  </table>
+
+  <input type="image" name="B0155A:ibtDeleteUp" id="B0155A_ibtDeleteUp" title="刪除" alt="刪除" src="../Images/Common/Delete_M.gif" />
+  <input type="image" name="B0155A:ibtCancelUp" id="B0155A_ibtCancelUp" title="取消" alt="取消" src="../Images/Common/Cancel_M.gif" />
+  <input type="image" name="B0155A:ibtBackUp" id="B0155A_ibtBackUp" title="回上層" alt="回上層" src="../Images/Common/Back_M.gif" />
+</form>
+</body>
+</html>

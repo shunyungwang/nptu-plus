@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<!--
+  測試用 A0207S 頁面結構（資料全部為虛構）。
+  刻意保留真實頁面的三個特性：
+  1. 表頭列含巢狀表格與 <style> 文字（舊的 td 兩兩配對會在這裡錯位）。
+  2. 同一批控制項出現兩次（唯讀 + 編輯表單）。
+  3. 含身分證、護照等敏感欄位，用來確認解析器不會把它們帶進模型。
+-->
+<html lang="zh-Hant-TW">
+<head><meta charset="utf-8"><title>fixture</title></head>
+<body>
+<table>
+  <tr>
+    <td colspan="4">
+      <table class="TableCommonHeader">
+        <tr>
+          <td class="pagetitle">
+            <style>.CommomHeadstyle1 { width: 10px; height: 100%; }</style>
+            測試同學(正式伺服器) 1人
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td>學號：</td>
+    <td><input name="A0207A:txtSTUDENT_ID" type="text" value="AAA115012" /></td>
+    <td>姓名：</td>
+    <td><input name="A0207A:txtSTD_CNAME" type="text" value="王小明" /></td>
+  </tr>
+  <tr>
+    <td>性別：</td>
+    <td>
+      <select name="A0207A:ddlSEX_M">
+        <option selected>1.男</option>
+        <option>2.女</option>
+        <option>3.其他</option>
+      </select>
+    </td>
+    <td>身分證字號：</td>
+    <td><input name="A0207A:txtIDNO" type="text" value="A123456789" /></td>
+  </tr>
+  <tr>
+    <td>費用別：</td>
+    <td>
+      <select name="A0207A:ddlFEE_NOW_M">
+        <option value=""></option>
+        <option>1.公費</option>
+        <option selected>2.自費</option>
+      </select>
+    </td>
+    <td>學籍目前狀態：</td>
+    <td>
+      <select name="A0207A:ddlNOW_M">
+        <option value=""></option>
+        <option selected>1.在學</option>
+        <option>2.未註冊</option>
+        <option>3.休學</option>
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td>學生身分別：</td>
+    <td>
+      <select name="A0207A:ddlSTDTP_M">
+        <option selected>01.一般生</option>
+        <option>02.在職生</option>
+      </select>
+    </td>
+    <td>原住民族別：</td>
+    <td>
+      <select name="A0207A:ddlCLAN_M">
+        <option value=""></option>
+        <option>1.阿美族</option>
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td>核准入學日期：</td>
+    <td><input name="A0207A:txtVRF_DT" type="text" value="1150901" /></td>
+    <td>入學文號：</td>
+    <td><input name="A0207A:txtVRF_NO" type="text" value="測試招生委員會決議公告" /></td>
+  </tr>
+  <tr>
+    <td>出生日期(民國)：</td>
+    <td><input name="A0207A:txtBIRTH_DT" type="text" value="930226" /></td>
+    <td>護照號碼：</td>
+    <td><input name="A0207A:txtPASSPORT_NO" type="text" value="999999999" /></td>
+  </tr>
+  <tr>
+    <td>國籍：</td>
+    <td>
+      <select name="A0207A:ddlNATIONALITY_M">
+        <option value=""></option>
+        <option selected>台灣，中華民國</option>
+      </select>
+    </td>
+    <td>英文姓名：</td>
+    <td><input name="A0207A:txtSTD_ENAME" type="text" value="WANG,XIAO-MING" /></td>
+  </tr>
+  <tr>
+    <td colspan="4">
+      <img id="A0207A_imgSTD_PIC" src="A0207S4Page.aspx?temp=1" alt="學生照片" />
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr><td colspan="4">&lt;戶籍資料&gt;</td></tr>
+  <tr>
+    <td>郵遞區號.地址：</td>
+    <td><input name="A0207A:txtREG_ZIP" type="text" value="900" /></td>
+    <td></td>
+    <td><input name="A0207A:txtREG_ADDR" type="text" value="屏東縣屏東市測試路1號" /></td>
+  </tr>
+  <tr>
+    <td>電話：</td>
+    <td><input name="A0207A:txtREG_TEL" type="text" value="0912345678" /></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr><td colspan="4">&lt;現在通訊資料&gt;</td></tr>
+  <tr>
+    <td>電話：</td>
+    <td><input name="A0207A:txtNOW_TEL" type="text" value="0912345678" /></td>
+    <td>行動電話：</td>
+    <td><input name="A0207A:txtMOBILE_TEL" type="text" value="0912345678" /></td>
+  </tr>
+  <tr>
+    <td>郵遞區號.地址：</td>
+    <td><input name="A0207A:txtNOW_ZIP" type="text" value="900" /></td>
+    <td></td>
+    <td><input name="A0207A:txtNOW_ADDR" type="text" value="屏東縣屏東市測試路1號" /></td>
+  </tr>
+  <tr>
+    <td>電子信箱：</td>
+    <td colspan="3"><input name="A0207A:txtEMAIL" type="text" value="test.student@example.com" /></td>
+  </tr>
+  <tr><td colspan="4">&lt;緊急聯絡資料&gt;</td></tr>
+  <tr>
+    <td>聯絡人：</td>
+    <td><input name="A0207A:txtURGENT_MAN" type="text" value="王大明" /></td>
+    <td>電話：</td>
+    <td><input name="A0207A:txtURGENT_TEL" type="text" value="0987654321" /></td>
+  </tr>
+  <tr>
+    <td>郵遞區號.地址：</td>
+    <td colspan="3"><input name="A0207A:txtURGENT_ADDR" type="text" value="屏東縣屏東市測試路1號" /></td>
+  </tr>
+  <tr><td colspan="4">&lt;住宿資料&gt;</td></tr>
+  <tr>
+    <td>宿舍房號：</td>
+    <td colspan="3"><input name="A0207A:txtROOM" type="text" value="無住宿" /></td>
+  </tr>
+</table>
+
+<!-- 唯讀表單的重複副本（真實頁面也會有兩份同樣的控制項）。 -->
+<form id="_A0207S">
+  <input type="hidden" name="__VIEWSTATE" value="fixture" />
+  <input type="hidden" name="A0207A:txtSTUDENT_ID" value="AAA115012" />
+  <input type="hidden" name="A0207A:txtSTD_CNAME" value="王小明" />
+</form>
+</body>
+</html>
